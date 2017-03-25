@@ -13,6 +13,9 @@ import java.util.Map;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ListBranchCommand.ListMode;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.errors.CorruptObjectException;
+import org.eclipse.jgit.errors.IncorrectObjectTypeException;
+import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
@@ -31,9 +34,47 @@ public class App
 {
     public static void main( String[] args )
     {
-        System.out.println( "Hello World!" );
-        String path = "C:" + File.separator + "hello" + File.separator + "auctioneer" + File.separator + ".git";
-        String path1 = "C:" + File.separator + "hello" + File.separator + "auctioneer" + File.separator;
+
+        String path = "C:" + File.separator + "hello" + File.separator + "auctioneer" + File.separator;
+        
+        
+        JgitReporter gitReporter=new JgitReporter(path);
+        try {
+        	System.out.println("Number of files");
+        	System.out.println(gitReporter.numberOfFiles());
+        	System.out.println("Number of lines");
+        	System.out.println(gitReporter.numberOfLines());
+        	System.out.println("Number of branches");
+        	System.out.println(gitReporter.numberOfBranches());
+        	System.out.println("Number of tags");
+        	System.out.println(gitReporter.numberOfTagss());
+        	System.out.println("Number of authors");
+        	System.out.println(gitReporter.numberOfAuthors());
+        	
+        	gitReporter.printBranches();
+		} catch (MissingObjectException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IncorrectObjectTypeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (CorruptObjectException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (GitAPIException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
+        
+        /*
+        
+        
+        
+        
 
         // Open an existing repository
         try {
@@ -186,4 +227,9 @@ public class App
             is.close();
         }
     }
+    
+    
+    */
+}
+    
 }
