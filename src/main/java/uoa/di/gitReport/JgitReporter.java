@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +36,12 @@ public class JgitReporter {
 	RevTree tree = null;
 	Git git = null;
 	String gitRepositoryPath = null;
+	HashMap<String, ArrayList<CommitData>> branchCommitsMap;
+	int numberOfCommits;
+
+	public int getNumberOfCommits() {
+		return numberOfCommits;
+	}
 
 	JgitReporter(String path) {
 		try {
@@ -46,7 +53,17 @@ public class JgitReporter {
 			commit = walk.parseCommit(head.getObjectId());
 			tree = commit.getTree();
 			git = new Git(repository);
+			branchCommitsMap = getBranchCommitsMap();
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (RevisionSyntaxException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoHeadException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (GitAPIException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -113,51 +130,6 @@ public class JgitReporter {
 
 	}
 
-	public HashMap<String, List<RevCommit>> getBranchMap()
-			throws RevisionSyntaxException, NoHeadException, MissingObjectException, IncorrectObjectTypeException,
-			AmbiguousObjectException, GitAPIException, IOException {
-
-		HashMap<String, List<RevCommit>> branchMap = new HashMap<String, List<RevCommit>>();
-		System.out.println("List of branches");
-		for (Ref branch : git.branchList().setListMode(ListMode.ALL).call()) {
-			String branchName = branch.getName();
-
-			System.out.println("Commits of branch: " + branch.getName());
-			System.out.println("-------------------------------------");
-
-			Iterable<RevCommit> commits2 = git.log().all().call();
-			ArrayList<RevCommit> listCommits = new ArrayList<RevCommit>();
-			for (RevCommit commit2 : commits2) {
-				boolean foundInThisBranch = false;
-
-				RevCommit targetCommit = walk.parseCommit(repository.resolve(commit2.getName()));
-				for (Map.Entry<String, Ref> e : repository.getAllRefs().entrySet()) {
-					if (e.getKey().startsWith(Constants.R_HEADS)) {
-						if (walk.isMergedInto(targetCommit, walk.parseCommit(e.getValue().getObjectId()))) {
-							String foundInBranch = e.getValue().getName();
-							if (branchName.equals(foundInBranch)) {
-								foundInThisBranch = true;
-								break;
-							}
-						}
-					}
-				}
-
-				if (foundInThisBranch) {
-					listCommits.add(commit2);
-					System.out.println(commit2.getName());
-					System.out.println(commit2.getAuthorIdent().getName());
-					System.out.println(new Date(commit2.getCommitTime()));
-					System.out.println(commit2.getFullMessage());
-				}
-			}
-
-			branchMap.put(branchName, listCommits);
-		}
-		return branchMap;
-
-	}
-
 	public HashMap<String, ArrayList<CommitData>> getBranchCommitsMap()
 			throws RevisionSyntaxException, NoHeadException, MissingObjectException, IncorrectObjectTypeException,
 			AmbiguousObjectException, GitAPIException, IOException {
@@ -201,18 +173,60 @@ public class JgitReporter {
 
 				}
 			}
-
+			numberOfCommits += listCommits.size();
 			branchMap.put(branchName, listCommits);
 		}
 		return branchMap;
 
 	}
 
+	public ArrayList<Author> getAuthorStats() throws RevisionSyntaxException, NoHeadException, MissingObjectException,
+			IncorrectObjectTypeException, AmbiguousObjectException, GitAPIException, IOException {
+		HashMap<String, Integer> commitsPerAuthorMap = commitsPerAuthor();
+		ArrayList<Author> authorList = new ArrayList<Author>();
+		Iterator it = commitsPerAuthorMap.entrySet().iterator();
+		while (it.hasNext()) {
+			Author author = new Author();
+			Map.Entry pair = (Map.Entry) it.next();
+			author.setName(pair.getKey().toString());
+			author.setNumberOfCommits(Integer.parseInt(pair.getValue().toString()));
+			Double numAuthorCommits = 1.0 * (Integer) pair.getValue();
+			Double percentage = (numAuthorCommits / numberOfCommits) * 100;
+			author.setCommitPercentage(percentage.toString());
+
+			authorList.add(author);
+			it.remove(); // avoids a ConcurrentModificationException
+		}
+
+		return authorList;
+
+	}
+
+	public ArrayList<BranchStats> getBranchStats()
+			throws RevisionSyntaxException, NoHeadException, MissingObjectException, IncorrectObjectTypeException,
+			AmbiguousObjectException, GitAPIException, IOException {
+		HashMap<String, Integer> commitsPerAuthorMap = commitsPerAuthor();
+		ArrayList<BranchStats> authorList = new ArrayList<BranchStats>();
+		Iterator it = commitsPerBranch().entrySet().iterator();
+		while (it.hasNext()) {
+			BranchStats branchStat = new BranchStats();
+			Map.Entry pair = (Map.Entry) it.next();
+			branchStat.setName(pair.getKey().toString());
+			Double numBranchCommits = 1.0 * (Integer) pair.getValue();
+			Double percentage = (numBranchCommits / numberOfCommits) * 100;
+			branchStat.setCommitPercentage(percentage.toString());
+
+			authorList.add(branchStat);
+			it.remove(); // avoids a ConcurrentModificationException
+		}
+
+		return authorList;
+
+	}
+
 	public HashMap<String, Integer> commitsPerAuthor()
 			throws RevisionSyntaxException, NoHeadException, MissingObjectException, IncorrectObjectTypeException,
 			AmbiguousObjectException, GitAPIException, IOException {
-
-		HashMap<String, ArrayList<CommitData>> branchCommitsMap = getBranchCommitsMap();
 		HashMap<String, Integer> authorMap = new HashMap<String, Integer>();
 		for (String branchName : getBranchesList()) {
 			ArrayList<CommitData> commits = branchCommitsMap.get(branchName);
@@ -232,8 +246,6 @@ public class JgitReporter {
 	public HashMap<String, Integer> commitsPerBranch()
 			throws RevisionSyntaxException, NoHeadException, MissingObjectException, IncorrectObjectTypeException,
 			AmbiguousObjectException, GitAPIException, IOException {
-
-		HashMap<String, ArrayList<CommitData>> branchCommitsMap = getBranchCommitsMap();
 		HashMap<String, Integer> branchMap = new HashMap<String, Integer>();
 		for (String branchName : getBranchesList()) {
 			ArrayList<CommitData> commits = branchCommitsMap.get(branchName);
@@ -246,8 +258,6 @@ public class JgitReporter {
 	public HashMap<String, HashMap<String, Integer>> commitsPerBranchPerAuthor()
 			throws RevisionSyntaxException, NoHeadException, MissingObjectException, IncorrectObjectTypeException,
 			AmbiguousObjectException, GitAPIException, IOException {
-
-		HashMap<String, ArrayList<CommitData>> branchCommitsMap = getBranchCommitsMap();
 		HashMap<String, HashMap<String, Integer>> commitsPerBranchPerAuthor = new HashMap<String, HashMap<String, Integer>>();
 		for (String branchName : getBranchesList()) {
 			HashMap<String, Integer> commitsPerAuthor = new HashMap<String, Integer>();

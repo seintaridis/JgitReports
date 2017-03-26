@@ -48,12 +48,11 @@ public class App {
 			stats.add("Number of tags: " + gitReporter.numberOfTags().toString());
 			stats.add("Number of authors: " + gitReporter.numberOfAuthors().toString());
 
-			int numberOfCommits = 0;
-
-			HashMap<String, ArrayList<CommitData>> branchCommitsMap = gitReporter.getBranchCommitsMap();
+			HashMap<String, ArrayList<CommitData>> branchCommitsMap = gitReporter.branchCommitsMap;
 			for (String branchName : gitReporter.getBranchesList()) {
 				ArrayList<CommitData> commits = branchCommitsMap.get(branchName);
 				HashMap<String, Integer> authorMap = gitReporter.commitsPerAuthor();
+				HashMap<String, Integer> branchMap = gitReporter.commitsPerBranch();
 				HashMap<String, HashMap<String, Integer>> commitsperbranchperauthor = gitReporter
 						.commitsPerBranchPerAuthor();
 
@@ -67,10 +66,12 @@ public class App {
 				writer.close();
 			}
 
-			stats.add("Number of commits: " + numberOfCommits);
+			stats.add("Number of commits: " + gitReporter.getNumberOfCommits());
 
 			data.put("stats", stats);
 			data.put("branches", gitReporter.getBranchesList());
+			data.put("authors", gitReporter.getAuthorStats());
+			data.put("branchStats", gitReporter.getBranchStats());
 			// Console output
 			Writer out = new OutputStreamWriter(System.out);
 			template.process(data, out);
