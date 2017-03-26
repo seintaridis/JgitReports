@@ -1,235 +1,109 @@
 package uoa.di.gitReport;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Date;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.ListBranchCommand.ListMode;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.errors.CorruptObjectException;
-import org.eclipse.jgit.errors.IncorrectObjectTypeException;
-import org.eclipse.jgit.errors.MissingObjectException;
-import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.PersonIdent;
-import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.revwalk.RevTree;
-import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
-import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.api.errors.NoHeadException;
+
+import freemarker.core.ParseException;
+import freemarker.template.MalformedTemplateNameException;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+import freemarker.template.TemplateNotFoundException;
 
 /**
  * Hello world!
  *
  */
-public class App 
-{
-    public static void main( String[] args )
-    {
+public class App {
+	public static void main(String[] args) {
 
-        String path = "C:" + File.separator + "hello" + File.separator + "auctioneer" + File.separator;
-        
-        
-        JgitReporter gitReporter=new JgitReporter(path);
-        try {
-        	System.out.println("Number of files");
-        	System.out.println(gitReporter.numberOfFiles());
-        	System.out.println("Number of lines");
-        	System.out.println(gitReporter.numberOfLines());
-        	System.out.println("Number of branches");
-        	System.out.println(gitReporter.numberOfBranches());
-        	System.out.println("Number of tags");
-        	System.out.println(gitReporter.numberOfTagss());
-        	System.out.println("Number of authors");
-        	System.out.println(gitReporter.numberOfAuthors());
-        	
-        	gitReporter.printBranches();
-		} catch (MissingObjectException e) {
+		String path = "C:" + File.separator + "hello" + File.separator + "auctioneer" + File.separator;
+
+		try {
+			Template template = new FreeMarkerConfig().getCfg().getTemplate("helloworld.ftl");
+			Template branchTemplate = new FreeMarkerConfig().getCfg().getTemplate("branchTemplate.ftl");
+
+			JgitReporter gitReporter = new JgitReporter(path);
+
+			// Build the data-model
+			Map<String, Object> data = new HashMap<String, Object>();
+			data.put("message", "GitReports");
+			Map<String, Object> dataBranch = new HashMap<String, Object>();
+
+			// List parsing
+			List<String> stats = new ArrayList<String>();
+
+			stats.add("Number of files: " + gitReporter.numberOfFiles().toString());
+			stats.add("Number of lines: " + gitReporter.numberOfLines().toString());
+			stats.add("Number of branches: " + gitReporter.numberOfBranches().toString());
+			stats.add("Number of tags: " + gitReporter.numberOfTags().toString());
+			stats.add("Number of authors: " + gitReporter.numberOfAuthors().toString());
+
+			int numberOfCommits = 0;
+
+			HashMap<String, ArrayList<CommitData>> branchCommitsMap = gitReporter.getBranchCommitsMap();
+			for (String branchName : gitReporter.getBranchesList()) {
+				ArrayList<CommitData> commits = branchCommitsMap.get(branchName);
+				HashMap<String, Integer> authorMap = gitReporter.commitsPerAuthor();
+				HashMap<String, HashMap<String, Integer>> commitsperbranchperauthor = gitReporter
+						.commitsPerBranchPerAuthor();
+
+				File file1 = new File("C:/hello/" + branchName + ".html");
+				file1.getParentFile().mkdirs();
+				FileWriter writer = new FileWriter(file1);
+				dataBranch.put("message", branchName);
+				dataBranch.put("commits", commits);
+				branchTemplate.process(dataBranch, writer);
+				writer.flush();
+				writer.close();
+			}
+
+			stats.add("Number of commits: " + numberOfCommits);
+
+			data.put("stats", stats);
+			data.put("branches", gitReporter.getBranchesList());
+			// Console output
+			Writer out = new OutputStreamWriter(System.out);
+			template.process(data, out);
+			out.flush();
+
+			// File output
+			Writer file = new FileWriter(new File("C:/hello/FTL_helloworld.html"));
+			template.process(data, file);
+
+			file.flush();
+			file.close();
+
+		} catch (TemplateNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (IncorrectObjectTypeException e) {
+		} catch (MalformedTemplateNameException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (CorruptObjectException e) {
+		} catch (ParseException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (TemplateException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoHeadException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (GitAPIException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-        
-        
-        /*
-        
-        
-        
-        
-
-        // Open an existing repository
-        try {
-            Repository repository = new FileRepositoryBuilder()
-                    .setGitDir(new File(path))
-                    .build();
-        ///.out.println(existingRepo.getDirectory().listFiles().length);
-        
-            
-            Ref head = repository.getRef("HEAD");
-            
-
-            // a RevWalk allows to walk over commits based on some filtering that is defined
-            RevWalk walk = new RevWalk(repository);
-            
-          
-
-            RevCommit commit = walk.parseCommit(head.getObjectId());
-           
-           
-            
-            RevTree tree = commit.getTree();
-            Git git = new Git(repository);
-            
-            System.out.println("Having tree: " + tree);
-
-            // now use a TreeWalk to iterate over all files in the Tree recursively
-            // you can set Filters to narrow down the results if needed
-            TreeWalk treeWalk = new TreeWalk(repository);
-            treeWalk.addTree(tree);
-            
-            treeWalk.setRecursive(true);
-            
-            int numofFiles=0;
-            int numOfLines=0;
-            
-            
-            while (treeWalk.next()) {
-            	numOfLines=numOfLines+countLines(path1+treeWalk.getPathString());
-            
-            	numofFiles++;               
-            }
-            
-            
-            List<Ref> branchList = new Git(repository).branchList().setListMode( ListMode.ALL ).call();
-            
-            System.out.println("number of files are");
-            System.out.println(numofFiles);
-            System.out.println("number of lines are");
-            System.out.println(numOfLines);
-            System.out.println("number of branches are");  // the remote branhes also
-            System.out.println(branchList.size());
-            System.out.println("number of tags are");
-            System.out.println(new Git(repository).tagList().call().size());
-          //  new Git(repository).log().all()
-            
-            Iterable<RevCommit> commits = new Git(repository).log().all().call();
-            HashMap<String,PersonIdent> userMap = new HashMap<String, PersonIdent>();
-            for (RevCommit com : commits){
-            	userMap.put(com.getAuthorIdent().getEmailAddress(),com.getAuthorIdent());
-            	
-            	
-            }
-            System.out.println("number of authors");
-            
-            
-            
-            System.out.println(userMap.size());
-            
-            System.out.println("List of branches");
-            for(Ref branch :branchList){
-            	String branchName = branch.getName();
-
-                System.out.println("Commits of branch: " + branch.getName());
-                System.out.println("-------------------------------------");
-
-                Iterable<RevCommit> commits2 = git.log().all().call();
-
-                for (RevCommit commit2 : commits2) {
-                    boolean foundInThisBranch = false;
-
-                    RevCommit targetCommit = walk.parseCommit(repository.resolve(
-                            commit2.getName()));
-                    for (Map.Entry<String, Ref> e : repository.getAllRefs().entrySet()) {
-                        if (e.getKey().startsWith(Constants.R_HEADS)) {
-                            if (walk.isMergedInto(targetCommit, walk.parseCommit(
-                                    e.getValue().getObjectId()))) {
-                                String foundInBranch = e.getValue().getName();
-                                if (branchName.equals(foundInBranch)) {
-                                    foundInThisBranch = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (foundInThisBranch) {
-                        System.out.println(commit2.getName());
-                        System.out.println(commit2.getAuthorIdent().getName());
-                        System.out.println(new Date(commit2.getCommitTime()));
-                        System.out.println(commit2.getFullMessage());
-                    }
-                }
-            }
-            
-            
-
-            
-            
-            
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (GitAPIException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        
-   
-        
-        
-    }
-    
-    
-    
-    
-    
-    public static void branchArray(){
-    	System.out.println("List of branches");
-    	
-    }
-    
-    
-    public static int countLines(String filename) throws IOException {
-        InputStream is = new BufferedInputStream(new FileInputStream(filename));
-        try {
-            byte[] c = new byte[1024];
-            int count = 0;
-            int readChars = 0;
-            boolean empty = true;
-            while ((readChars = is.read(c)) != -1) {
-                empty = false;
-                for (int i = 0; i < readChars; ++i) {
-                    if (c[i] == '\n') {
-                        ++count;
-                    }
-                }
-            }
-            return (count == 0 && !empty) ? 1 : count;
-        } finally {
-            is.close();
-        }
-    }
-    
-    
-    */
-}
-    
+	}
 }
