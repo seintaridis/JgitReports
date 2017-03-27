@@ -27,12 +27,13 @@ public class App {
 	public static void main(String[] args) {
 
 		String path = "C:" + File.separator + "hello" + File.separator + "auctioneer" + File.separator;
+		String path1 = "C:" + File.separator + "hello" + File.separator + "CLI-git-repository-report" + File.separator;
 
 		try {
 			Template template = new FreeMarkerConfig().getCfg().getTemplate("helloworld.ftl");
 			Template branchTemplate = new FreeMarkerConfig().getCfg().getTemplate("branchTemplate.ftl");
 
-			JgitReporter gitReporter = new JgitReporter(path);
+			JgitReporter gitReporter = new JgitReporter(path1);
 
 			// Build the data-model
 			Map<String, Object> data = new HashMap<String, Object>();
@@ -72,6 +73,8 @@ public class App {
 			data.put("branches", gitReporter.getBranchesList());
 			data.put("authors", gitReporter.getAuthorStats());
 			data.put("branchStats", gitReporter.getBranchStats());
+			data.put("branchAuhors", gitReporter.getAuthorCommitsPerBranch());
+
 			// Console output
 			Writer out = new OutputStreamWriter(System.out);
 			template.process(data, out);
@@ -83,6 +86,8 @@ public class App {
 
 			file.flush();
 			file.close();
+			int days = (int) ((gitReporter.maxCommitTime - gitReporter.minCommitTime) / (1000 * 60 * 60 * 24));
+			System.out.println(days);
 
 		} catch (TemplateNotFoundException e) {
 			// TODO Auto-generated catch block

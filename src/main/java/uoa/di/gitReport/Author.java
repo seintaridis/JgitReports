@@ -4,6 +4,33 @@ public class Author {
 	String name;
 	int numberOfCommits;
 	String commitPercentage;
+	String commitsPerDay;
+	String commitsPerMonth;
+	String commitsPerYear;
+
+	public String getCommitsPerDay() {
+		return commitsPerDay;
+	}
+
+	public void setCommitsPerDay(String commitsPerDay) {
+		this.commitsPerDay = commitsPerDay;
+	}
+
+	public String getCommitsPerMonth() {
+		return commitsPerMonth;
+	}
+
+	public void setCommitsPerMonth(String commmitsPerMonth) {
+		this.commitsPerMonth = commmitsPerMonth;
+	}
+
+	public String getCommitsPerYear() {
+		return commitsPerYear;
+	}
+
+	public void setCommitsPerYear(String commitsPerYear) {
+		this.commitsPerYear = commitsPerYear;
+	}
 
 	public String getName() {
 		return name;

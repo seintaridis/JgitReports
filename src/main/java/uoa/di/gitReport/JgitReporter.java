@@ -1,6 +1,8 @@
 package uoa.di.gitReport;
 
 import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -13,20 +15,30 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ListBranchCommand.ListMode;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoHeadException;
+import org.eclipse.jgit.diff.DiffEntry;
+import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.diff.Edit;
 import org.eclipse.jgit.errors.AmbiguousObjectException;
 import org.eclipse.jgit.errors.CorruptObjectException;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.RevisionSyntaxException;
 import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.patch.FileHeader;
+import org.eclipse.jgit.patch.HunkHeader;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.treewalk.AbstractTreeIterator;
+import org.eclipse.jgit.treewalk.CanonicalTreeParser;
+import org.eclipse.jgit.treewalk.EmptyTreeIterator;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 public class JgitReporter {
 	Repository repository = null;
@@ -38,6 +50,9 @@ public class JgitReporter {
 	String gitRepositoryPath = null;
 	HashMap<String, ArrayList<CommitData>> branchCommitsMap;
 	int numberOfCommits;
+	Long minCommitTime = new Date().getTime();
+	Long maxCommitTime = new Long(0);
+	int daysOfRepository = 0;
 
 	public int getNumberOfCommits() {
 		return numberOfCommits;
@@ -145,7 +160,56 @@ public class JgitReporter {
 			Iterable<RevCommit> commits2 = git.log().all().call();
 			ArrayList<CommitData> listCommits = new ArrayList<CommitData>();
 			for (RevCommit commit2 : commits2) {
+				int countChanges = 0;
 				boolean foundInThisBranch = false;
+				FileOutputStream stdout = new FileOutputStream(FileDescriptor.out);
+				System.out.println(commit2.name());
+
+				try (DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
+					diffFormatter.setRepository(repository);
+					if (commit2.getParentCount() != 0) {
+						for (DiffEntry entry : diffFormatter.scan(commit2, commit2.getParent(0))) {
+
+							System.out.println(entry);
+							FileHeader fileHeader = diffFormatter.toFileHeader(entry);
+							List<? extends HunkHeader> hunks = fileHeader.getHunks();
+							for (HunkHeader hunk : hunks) {
+								System.out.println(hunk);
+								for (Edit x : hunk.toEditList()) {
+									int edit1 = x.getEndB() - x.getBeginB();
+									int edit2 = x.getEndA() - x.getBeginA();
+									countChanges += (edit1 + edit2);
+								}
+
+							}
+						}
+					} else {
+
+						AbstractTreeIterator oldTreeIter = new EmptyTreeIterator();
+						ObjectReader reader = repository.newObjectReader();
+						AbstractTreeIterator newTreeIter = new CanonicalTreeParser(null, reader, commit2.getTree());
+						List<DiffEntry> diffEntries = diffFormatter.scan(oldTreeIter, newTreeIter);
+						for (DiffEntry dif : diffEntries) {
+
+							System.out.println(dif);
+							FileHeader fileHeader = diffFormatter.toFileHeader(dif);
+							List<? extends HunkHeader> hunks = fileHeader.getHunks();
+							for (HunkHeader hunk : hunks) {
+								System.out.println(hunk);
+								for (Edit x : hunk.toEditList()) {
+									int edit1 = x.getEndB() - x.getBeginB();
+									int edit2 = x.getEndA() - x.getBeginA();
+									countChanges += (edit1 + edit2);
+								}
+
+							}
+
+						}
+
+					}
+
+				}
+				System.out.println(countChanges);
 
 				RevCommit targetCommit = walk.parseCommit(repository.resolve(commit2.getName()));
 				for (Map.Entry<String, Ref> e : repository.getAllRefs().entrySet()) {
@@ -165,9 +229,16 @@ public class JgitReporter {
 					commitData.setId(commit2.getName());
 					commitData.setMessage(commit2.getFullMessage());
 					commitData.setAuthor(commit2.getAuthorIdent().getName());
-					int sec = commit.getCommitTime();
+					int sec = commit2.getCommitTime();
 					Long longSec = new Long(sec);
+
 					Long millisec = longSec * 1000;
+					if (millisec < minCommitTime) {
+						minCommitTime = millisec;
+					}
+					if (millisec > maxCommitTime) {
+						maxCommitTime = millisec;
+					}
 					commitData.setDate(new Date(millisec).toString());
 					listCommits.add(commitData);
 
@@ -176,6 +247,7 @@ public class JgitReporter {
 			numberOfCommits += listCommits.size();
 			branchMap.put(branchName, listCommits);
 		}
+		daysOfRepository = (int) ((maxCommitTime - minCommitTime) / (1000 * 60 * 60 * 24));
 		return branchMap;
 
 	}
@@ -192,6 +264,13 @@ public class JgitReporter {
 			author.setNumberOfCommits(Integer.parseInt(pair.getValue().toString()));
 			Double numAuthorCommits = 1.0 * (Integer) pair.getValue();
 			Double percentage = (numAuthorCommits / numberOfCommits) * 100;
+			Double commitPerDay = numAuthorCommits / daysOfRepository;
+			Double commitsPerMonth = commitPerDay * 30;
+			Double commmitsPerYear = commitsPerMonth * 12;
+			author.setCommitsPerDay(commitPerDay.toString());
+			author.setCommitsPerMonth(commitsPerMonth.toString());
+			author.setCommitsPerYear(commmitsPerYear.toString());
+
 			author.setCommitPercentage(percentage.toString());
 
 			authorList.add(author);
@@ -212,6 +291,7 @@ public class JgitReporter {
 			BranchStats branchStat = new BranchStats();
 			Map.Entry pair = (Map.Entry) it.next();
 			branchStat.setName(pair.getKey().toString());
+			branchStat.setNumOfCommits((Integer) pair.getValue());
 			Double numBranchCommits = 1.0 * (Integer) pair.getValue();
 			Double percentage = (numBranchCommits / numberOfCommits) * 100;
 			branchStat.setCommitPercentage(percentage.toString());
@@ -240,6 +320,34 @@ public class JgitReporter {
 			}
 		}
 		return authorMap;
+
+	}
+
+	public ArrayList<BranchStats> getAuthorCommitsPerBranch()
+			throws RevisionSyntaxException, NoHeadException, MissingObjectException, IncorrectObjectTypeException,
+			AmbiguousObjectException, GitAPIException, IOException {
+		HashMap<String, HashMap<String, Integer>> branchMap = commitsPerBranchPerAuthor();
+		ArrayList<BranchStats> branchStatsList = getBranchStats();
+		for (BranchStats branch : branchStatsList) {
+			HashMap<String, Integer> authorMap = branchMap.get(branch.getName());
+			ArrayList<Author> authorList = new ArrayList<Author>();
+			Iterator it = authorMap.entrySet().iterator();
+			while (it.hasNext()) {
+				Author author = new Author();
+				Map.Entry pair = (Map.Entry) it.next();
+				author.setName(pair.getKey().toString());
+				author.setNumberOfCommits(Integer.parseInt(pair.getValue().toString()));
+				Double numAuthorCommits = 1.0 * (Integer) pair.getValue();
+				Double percentage = (numAuthorCommits / branch.numOfCommits) * 100;
+				author.setCommitPercentage(percentage.toString());
+
+				authorList.add(author);
+				it.remove(); // avoids a ConcurrentModificationException
+			}
+			branch.setListOfAthors(authorList);
+
+		}
+		return branchStatsList;
 
 	}
 
