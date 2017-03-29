@@ -25,12 +25,16 @@ table, th, td {
     <th>Message</th>
     <th>Date</th>
     <th>Author</th>
+    <th>Tag</th>
+    
 </tr>
 <#list commits as commit>
 	 <tr> <td> ${commit_index + 1}. ${commit.id} </td>  
 	      <td>  ${commit.message} </td>
 	      <td>  ${commit.date} </td>
 	      <td>  ${commit.author} </td>  
+	      <td>  ${commit.tag} </td>  
+	      
 	  </tr>
 </#list>
 </table>

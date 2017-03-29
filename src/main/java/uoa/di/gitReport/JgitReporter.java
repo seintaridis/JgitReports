@@ -24,6 +24,7 @@ import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.RevisionSyntaxException;
 import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
@@ -47,14 +48,14 @@ public class JgitReporter {
 	RevTree tree = null;
 	Git git = null;
 	String gitRepositoryPath = null;
-	HashMap<String, ArrayList<CommitData>> branchCommitsMap;
+	HashMap<String, ArrayList<CommitData>> branchCommitsMap = new HashMap<>();
 	int numberOfCommits;
 	Long minCommitTime = new Date().getTime();
 	Long maxCommitTime = new Long(0);
 	int daysOfRepository = 0;
-	HashMap<String, Integer> modifiedlinesPerAuthorMap = new HashMap<String, Integer>();
-	HashMap<String, Integer> insertedlinesPerAuthorMap = new HashMap<String, Integer>();
-	HashMap<String, Integer> deletedlinesPerAuthorMap = new HashMap<String, Integer>();
+	HashMapGitStats modifiedlinesPerAuthorMap = new HashMapGitStats();
+	HashMapGitStats insertedlinesPerAuthorMap = new HashMapGitStats();
+	HashMapGitStats deletedlinesPerAuthorMap = new HashMapGitStats();
 
 	Integer sumLines = 0;
 	Integer sumInsertedLines = 0;
@@ -75,7 +76,7 @@ public class JgitReporter {
 			commit = walk.parseCommit(head.getObjectId());
 			tree = commit.getTree();
 			git = new Git(repository);
-			branchCommitsMap = getBranchCommitsMap();
+			computeStats();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (RevisionSyntaxException e) {
@@ -129,6 +130,10 @@ public class JgitReporter {
 	}
 
 	Integer numberOfTags() throws GitAPIException {
+
+		for (Ref x : git.tagList().call()) {
+
+		}
 		return git.tagList().call().size();
 
 	}
@@ -147,13 +152,9 @@ public class JgitReporter {
 
 	}
 
-	public HashMap<String, ArrayList<CommitData>> getBranchCommitsMap()
-			throws RevisionSyntaxException, NoHeadException, MissingObjectException, IncorrectObjectTypeException,
-			AmbiguousObjectException, GitAPIException, IOException {
-
-		HashMap<String, ArrayList<CommitData>> branchMap = new HashMap<String, ArrayList<CommitData>>();
+	public void computeStats() throws RevisionSyntaxException, NoHeadException, MissingObjectException,
+			IncorrectObjectTypeException, AmbiguousObjectException, GitAPIException, IOException {
 		System.out.println("List of branches");
-
 		for (Ref branch : git.branchList().setListMode(ListMode.ALL).call()) {
 			String branchName = branch.getName();
 
@@ -163,86 +164,9 @@ public class JgitReporter {
 			Iterable<RevCommit> commits2 = git.log().all().call();
 			ArrayList<CommitData> listCommits = new ArrayList<CommitData>();
 			for (RevCommit commit2 : commits2) {
-				int countChanges = 0;
-				int countInsertions = 0;
-				int countDeletios = 0;
-				int countUpdates = 0;
 				boolean foundInThisBranch = false;
 				FileOutputStream stdout = new FileOutputStream(FileDescriptor.out);
 				System.out.println(commit2.name());
-
-				try (DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
-					diffFormatter.setRepository(repository);
-					if (commit2.getParentCount() != 0) {
-						for (DiffEntry entry : diffFormatter.scan(commit2, commit2.getParent(0))) {
-
-							System.out.println(entry);
-							FileHeader fileHeader = diffFormatter.toFileHeader(entry);
-							List<? extends HunkHeader> hunks = fileHeader.getHunks();
-							for (HunkHeader hunk : hunks) {
-								System.out.println(hunk);
-								for (Edit x : hunk.toEditList()) {
-									int edit1 = x.getEndB() - x.getBeginB();
-									int edit2 = x.getEndA() - x.getBeginA();
-									if (x.getType() == Edit.Type.INSERT) {
-										countInsertions += (edit1 + edit2);
-									} else if (x.getType() == Edit.Type.DELETE) {
-										countDeletios += (edit1 + edit2);
-
-									}
-
-									else if (x.getType() == Edit.Type.REPLACE) {
-										countUpdates += (edit1 + edit2);
-
-									}
-									countChanges += (edit1 + edit2);
-								}
-
-							}
-						}
-					} else {
-
-						AbstractTreeIterator oldTreeIter = new EmptyTreeIterator();
-						ObjectReader reader = repository.newObjectReader();
-						AbstractTreeIterator newTreeIter = new CanonicalTreeParser(null, reader, commit2.getTree());
-						List<DiffEntry> diffEntries = diffFormatter.scan(oldTreeIter, newTreeIter);
-						for (DiffEntry dif : diffEntries) {
-
-							System.out.println(dif);
-							FileHeader fileHeader = diffFormatter.toFileHeader(dif);
-							List<? extends HunkHeader> hunks = fileHeader.getHunks();
-							for (HunkHeader hunk : hunks) {
-								System.out.println(hunk);
-								for (Edit x : hunk.toEditList()) {
-									int edit1 = x.getEndB() - x.getBeginB();
-									int edit2 = x.getEndA() - x.getBeginA();
-									if (x.getType() == Edit.Type.INSERT) {
-										countInsertions += (edit1 + edit2);
-									} else if (x.getType() == Edit.Type.DELETE) {
-										countDeletios += (edit1 + edit2);
-
-									}
-
-									else if (x.getType() == Edit.Type.REPLACE) {
-										countUpdates += (edit1 + edit2);
-
-									}
-									countChanges += (edit1 + edit2);
-								}
-
-							}
-
-						}
-
-					}
-
-				}
-				System.out.println(countChanges);
-				System.out.println("deleted: " + countDeletios);
-				System.out.println("inserts " + countInsertions);
-				System.out.println("updated " + countUpdates);
-
-				System.out.println(sumLines);
 
 				RevCommit targetCommit = walk.parseCommit(repository.resolve(commit2.getName()));
 				for (Map.Entry<String, Ref> e : repository.getAllRefs().entrySet()) {
@@ -256,35 +180,38 @@ public class JgitReporter {
 						}
 					}
 				}
-
 				if (foundInThisBranch) {
-					Integer linesPerCommit = modifiedlinesPerAuthorMap.get(commit2.getAuthorIdent().getName());
-					if (linesPerCommit == null)
-						linesPerCommit = 0;
-					linesPerCommit += countUpdates;
-					modifiedlinesPerAuthorMap.put(commit2.getAuthorIdent().getName(), linesPerCommit);
-					sumUpdatedLines += countUpdates;
+					DiffStats diffStats = statsPerCommit(commit2);
 
-					sumLines += countChanges;
-
-					Integer addedLinesPerCommit = insertedlinesPerAuthorMap.get(commit2.getAuthorIdent().getName());
-					if (addedLinesPerCommit == null)
-						addedLinesPerCommit = 0;
-					addedLinesPerCommit += countInsertions;
-					insertedlinesPerAuthorMap.put(commit2.getAuthorIdent().getName(), addedLinesPerCommit);
-					sumInsertedLines += countInsertions;
-
-					Integer removedLinesPerCommit = deletedlinesPerAuthorMap.get(commit2.getAuthorIdent().getName());
-					if (removedLinesPerCommit == null)
-						removedLinesPerCommit = 0;
-					removedLinesPerCommit += countDeletios;
-					deletedlinesPerAuthorMap.put(commit2.getAuthorIdent().getName(), removedLinesPerCommit);
-					sumDeletedLines += countDeletios;
+					modifiedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getName(), diffStats.getLinesUpdated());
+					sumUpdatedLines += diffStats.getLinesUpdated();
+					insertedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getName(),
+							diffStats.getLinesInserted());
+					sumInsertedLines += diffStats.getLinesInserted();
+					deletedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getName(), diffStats.getLinesDeleted());
+					sumDeletedLines += diffStats.getLinesDeleted();
+					sumLines += diffStats.getLinesChanged();
 
 					CommitData commitData = new CommitData();
 					commitData.setId(commit2.getName());
 					commitData.setMessage(commit2.getFullMessage());
 					commitData.setAuthor(commit2.getAuthorIdent().getName());
+
+					List<Ref> list = git.tagList().call();
+					ObjectId commitId = commit2.getId();
+
+					for (Ref tag : list) {
+
+						if (tag.getPeeledObjectId() == null) {
+
+							if (tag.getObjectId().equals(commitId)) {
+								commitData.setTag(tag.getName());
+							}
+
+						} else if (tag.getPeeledObjectId().equals(commitId)) {
+							commitData.setTag(tag.getName());
+						}
+					}
 					int sec = commit2.getCommitTime();
 					Long longSec = new Long(sec);
 
@@ -302,10 +229,9 @@ public class JgitReporter {
 			}
 			numberOfCommits += listCommits.size();
 
-			branchMap.put(branchName, listCommits);
+			branchCommitsMap.put(branchName, listCommits);
 		}
 		daysOfRepository = (int) ((maxCommitTime - minCommitTime) / (1000 * 60 * 60 * 24));
-		return branchMap;
 
 	}
 
@@ -459,6 +385,74 @@ public class JgitReporter {
 		}
 		return commitsPerBranchPerAuthor;
 
+	}
+
+	public DiffStats getStatsPerCommit(List<? extends HunkHeader> hunks) {
+		DiffStats diffStats = new DiffStats();
+		int linesInserted = 0;
+		int linesDeleted = 0;
+		int linesUpdated = 0;
+		int linesChanged = 0;
+
+		for (HunkHeader hunk : hunks) {
+			System.out.println(hunk);
+			for (Edit x : hunk.toEditList()) {
+				int edit1 = x.getEndB() - x.getBeginB();
+				int edit2 = x.getEndA() - x.getBeginA();
+				if (x.getType() == Edit.Type.INSERT) {
+					linesInserted += (edit1 + edit2);
+				} else if (x.getType() == Edit.Type.DELETE) {
+					linesDeleted += (edit1 + edit2);
+
+				}
+
+				else if (x.getType() == Edit.Type.REPLACE) {
+					linesUpdated += (edit1 + edit2);
+
+				}
+				linesChanged += (edit1 + edit2);
+			}
+
+		}
+		diffStats.setLinesChanged(linesChanged);
+		diffStats.setLinesDeleted(linesDeleted);
+		diffStats.setLinesInserted(linesInserted);
+		diffStats.setLinesUpdated(linesUpdated);
+		return diffStats;
+
+	}
+
+	DiffStats statsPerCommit(RevCommit commit) throws CorruptObjectException, MissingObjectException, IOException {
+
+		try (DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
+			DiffStats diffStats = new DiffStats();
+			diffFormatter.setRepository(repository);
+			if (commit.getParentCount() != 0) {
+				for (DiffEntry entry : diffFormatter.scan(commit, commit.getParent(0))) {
+
+					System.out.println(entry);
+					FileHeader fileHeader = diffFormatter.toFileHeader(entry);
+					List<? extends HunkHeader> hunks = fileHeader.getHunks();
+					diffStats = getStatsPerCommit(hunks);
+				}
+			} else {
+
+				AbstractTreeIterator oldTreeIter = new EmptyTreeIterator();
+				ObjectReader reader = repository.newObjectReader();
+				AbstractTreeIterator newTreeIter = new CanonicalTreeParser(null, reader, commit.getTree());
+				List<DiffEntry> diffEntries = diffFormatter.scan(oldTreeIter, newTreeIter);
+				for (DiffEntry dif : diffEntries) {
+					System.out.println(dif);
+					FileHeader fileHeader = diffFormatter.toFileHeader(dif);
+					List<? extends HunkHeader> hunks = fileHeader.getHunks();
+					diffStats = getStatsPerCommit(hunks);
+				}
+
+			}
+
+			return diffStats;
+
+		}
 	}
 
 }

@@ -33,7 +33,7 @@ public class App {
 			Template template = new FreeMarkerConfig().getCfg().getTemplate("helloworld.ftl");
 			Template branchTemplate = new FreeMarkerConfig().getCfg().getTemplate("branchTemplate.ftl");
 
-			JgitReporter gitReporter = new JgitReporter(path);
+			JgitReporter gitReporter = new JgitReporter(path1);
 
 			// Build the data-model
 			Map<String, Object> data = new HashMap<String, Object>();
@@ -52,11 +52,6 @@ public class App {
 			HashMap<String, ArrayList<CommitData>> branchCommitsMap = gitReporter.branchCommitsMap;
 			for (String branchName : gitReporter.getBranchesList()) {
 				ArrayList<CommitData> commits = branchCommitsMap.get(branchName);
-				HashMap<String, Integer> authorMap = gitReporter.commitsPerAuthor();
-				HashMap<String, Integer> branchMap = gitReporter.commitsPerBranch();
-				HashMap<String, HashMap<String, Integer>> commitsperbranchperauthor = gitReporter
-						.commitsPerBranchPerAuthor();
-
 				File file1 = new File("C:/hello/" + branchName + ".html");
 				file1.getParentFile().mkdirs();
 				FileWriter writer = new FileWriter(file1);
@@ -66,7 +61,6 @@ public class App {
 				writer.flush();
 				writer.close();
 			}
-
 			stats.add("Number of commits: " + gitReporter.getNumberOfCommits());
 
 			data.put("stats", stats);
