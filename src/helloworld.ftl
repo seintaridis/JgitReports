@@ -13,6 +13,8 @@ table, th, td {
 
 <h2>${message}</h2>
 
+General Stats
+
 <ul>
 
 <#list stats as stat>
@@ -34,21 +36,27 @@ table, th, td {
 </table>
 
 
-
+Author Stats
 
 <table style="width:100%">
-<col width=30%>
- <col width=20%>
+<col width=10%>
+ <col width=10%>
+ <col width=10%>
+  <col width=10%>
+   <col width=10%>
  <col width=20%>
   <col width=20%>
-   <col width=20%>
- 
+ <col width=10%>
 <tr>
     <th>name</th>
     <th>percentage</th>
     <th>commits/day</th>
     <th>commits/month</th>
     <th>commits/year</th>
+    <th>averageModifiedLines</th>
+    <th>averageDeletedLines</th>
+    <th>averageInsertedLines</th>
+    
 </tr>
 <#list authors as author>
 	 <tr>  
@@ -57,11 +65,16 @@ table, th, td {
 	      <td>  ${author.commitsPerDay} </td>
 	      <td>  ${author.commitsPerMonth} </td>
 	      <td>  ${author.commitsPerYear} </td>
+	      <td>  ${author.modifiedLinesAverage} </td>
+	      <td>  ${author.deletedLinesAverage} </td>
+	      <td>  ${author.insertedLinesAverage} </td>
+	      	      
+	      
 	  </tr>
 </#list>
 </table>
 
-
+Average commits per branch
 
 <table style="width:50%">
 <col width=30%>
@@ -92,8 +105,7 @@ table, th, td {
 
  
 <tr>
-    <th>name</th>
-    <th>percentage</th>
+    <th>Commits per branch per user</th>
 </tr>
 <#list branchAuhors as branchAuhor>
 	 <tr>  

@@ -33,7 +33,7 @@ public class App {
 			Template template = new FreeMarkerConfig().getCfg().getTemplate("helloworld.ftl");
 			Template branchTemplate = new FreeMarkerConfig().getCfg().getTemplate("branchTemplate.ftl");
 
-			JgitReporter gitReporter = new JgitReporter(path1);
+			JgitReporter gitReporter = new JgitReporter(path);
 
 			// Build the data-model
 			Map<String, Object> data = new HashMap<String, Object>();

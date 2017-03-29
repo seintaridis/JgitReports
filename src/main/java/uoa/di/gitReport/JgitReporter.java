@@ -25,7 +25,6 @@ import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.RevisionSyntaxException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectReader;
-import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.patch.FileHeader;
@@ -53,6 +52,14 @@ public class JgitReporter {
 	Long minCommitTime = new Date().getTime();
 	Long maxCommitTime = new Long(0);
 	int daysOfRepository = 0;
+	HashMap<String, Integer> modifiedlinesPerAuthorMap = new HashMap<String, Integer>();
+	HashMap<String, Integer> insertedlinesPerAuthorMap = new HashMap<String, Integer>();
+	HashMap<String, Integer> deletedlinesPerAuthorMap = new HashMap<String, Integer>();
+
+	Integer sumLines = 0;
+	Integer sumInsertedLines = 0;
+	Integer sumDeletedLines = 0;
+	Integer sumUpdatedLines = 0;
 
 	public int getNumberOfCommits() {
 		return numberOfCommits;
@@ -127,12 +134,7 @@ public class JgitReporter {
 	}
 
 	Integer numberOfAuthors() throws NoHeadException, GitAPIException, IOException {
-		Iterable<RevCommit> commits = git.log().all().call();
-		HashMap<String, PersonIdent> userMap = new HashMap<String, PersonIdent>();
-		for (RevCommit com : commits) {
-			userMap.put(com.getAuthorIdent().getEmailAddress(), com.getAuthorIdent());
-		}
-		return userMap.size();
+		return modifiedlinesPerAuthorMap.size();
 	}
 
 	public List<String> getBranchesList() throws GitAPIException {
@@ -151,6 +153,7 @@ public class JgitReporter {
 
 		HashMap<String, ArrayList<CommitData>> branchMap = new HashMap<String, ArrayList<CommitData>>();
 		System.out.println("List of branches");
+
 		for (Ref branch : git.branchList().setListMode(ListMode.ALL).call()) {
 			String branchName = branch.getName();
 
@@ -161,6 +164,9 @@ public class JgitReporter {
 			ArrayList<CommitData> listCommits = new ArrayList<CommitData>();
 			for (RevCommit commit2 : commits2) {
 				int countChanges = 0;
+				int countInsertions = 0;
+				int countDeletios = 0;
+				int countUpdates = 0;
 				boolean foundInThisBranch = false;
 				FileOutputStream stdout = new FileOutputStream(FileDescriptor.out);
 				System.out.println(commit2.name());
@@ -178,6 +184,17 @@ public class JgitReporter {
 								for (Edit x : hunk.toEditList()) {
 									int edit1 = x.getEndB() - x.getBeginB();
 									int edit2 = x.getEndA() - x.getBeginA();
+									if (x.getType() == Edit.Type.INSERT) {
+										countInsertions += (edit1 + edit2);
+									} else if (x.getType() == Edit.Type.DELETE) {
+										countDeletios += (edit1 + edit2);
+
+									}
+
+									else if (x.getType() == Edit.Type.REPLACE) {
+										countUpdates += (edit1 + edit2);
+
+									}
 									countChanges += (edit1 + edit2);
 								}
 
@@ -199,6 +216,17 @@ public class JgitReporter {
 								for (Edit x : hunk.toEditList()) {
 									int edit1 = x.getEndB() - x.getBeginB();
 									int edit2 = x.getEndA() - x.getBeginA();
+									if (x.getType() == Edit.Type.INSERT) {
+										countInsertions += (edit1 + edit2);
+									} else if (x.getType() == Edit.Type.DELETE) {
+										countDeletios += (edit1 + edit2);
+
+									}
+
+									else if (x.getType() == Edit.Type.REPLACE) {
+										countUpdates += (edit1 + edit2);
+
+									}
 									countChanges += (edit1 + edit2);
 								}
 
@@ -210,6 +238,11 @@ public class JgitReporter {
 
 				}
 				System.out.println(countChanges);
+				System.out.println("deleted: " + countDeletios);
+				System.out.println("inserts " + countInsertions);
+				System.out.println("updated " + countUpdates);
+
+				System.out.println(sumLines);
 
 				RevCommit targetCommit = walk.parseCommit(repository.resolve(commit2.getName()));
 				for (Map.Entry<String, Ref> e : repository.getAllRefs().entrySet()) {
@@ -225,6 +258,29 @@ public class JgitReporter {
 				}
 
 				if (foundInThisBranch) {
+					Integer linesPerCommit = modifiedlinesPerAuthorMap.get(commit2.getAuthorIdent().getName());
+					if (linesPerCommit == null)
+						linesPerCommit = 0;
+					linesPerCommit += countUpdates;
+					modifiedlinesPerAuthorMap.put(commit2.getAuthorIdent().getName(), linesPerCommit);
+					sumUpdatedLines += countUpdates;
+
+					sumLines += countChanges;
+
+					Integer addedLinesPerCommit = insertedlinesPerAuthorMap.get(commit2.getAuthorIdent().getName());
+					if (addedLinesPerCommit == null)
+						addedLinesPerCommit = 0;
+					addedLinesPerCommit += countInsertions;
+					insertedlinesPerAuthorMap.put(commit2.getAuthorIdent().getName(), addedLinesPerCommit);
+					sumInsertedLines += countInsertions;
+
+					Integer removedLinesPerCommit = deletedlinesPerAuthorMap.get(commit2.getAuthorIdent().getName());
+					if (removedLinesPerCommit == null)
+						removedLinesPerCommit = 0;
+					removedLinesPerCommit += countDeletios;
+					deletedlinesPerAuthorMap.put(commit2.getAuthorIdent().getName(), removedLinesPerCommit);
+					sumDeletedLines += countDeletios;
+
 					CommitData commitData = new CommitData();
 					commitData.setId(commit2.getName());
 					commitData.setMessage(commit2.getFullMessage());
@@ -245,6 +301,7 @@ public class JgitReporter {
 				}
 			}
 			numberOfCommits += listCommits.size();
+
 			branchMap.put(branchName, listCommits);
 		}
 		daysOfRepository = (int) ((maxCommitTime - minCommitTime) / (1000 * 60 * 60 * 24));
@@ -275,6 +332,25 @@ public class JgitReporter {
 
 			authorList.add(author);
 			it.remove(); // avoids a ConcurrentModificationException
+		}
+
+		for (Author author : authorList) {
+			Integer modifiedLines = modifiedlinesPerAuthorMap.get(author.getName());
+			Double modifiedLinesDouble = 1.0 * modifiedLines;
+			Double modifiedLinesAverage = modifiedLinesDouble / sumUpdatedLines;
+			author.setModifiedLinesAverage(modifiedLinesAverage.toString());
+			author.setModifiedLines(modifiedLines);
+
+			Integer insertedLines = insertedlinesPerAuthorMap.get(author.getName());
+			Double insertedLinesDouble = 1.0 * insertedLines;
+			Double insertedLinesAverage = insertedLinesDouble / sumInsertedLines;
+			author.setInsertedLinesAverage(insertedLinesAverage.toString());
+
+			Integer deletedLines = deletedlinesPerAuthorMap.get(author.getName());
+			Double deletedLinesDouble = 1.0 * deletedLines;
+			Double deletedLinesAverage = deletedLinesDouble / sumDeletedLines;
+			author.setDeletedLinesAverage(deletedLinesAverage.toString());
+
 		}
 
 		return authorList;
@@ -311,6 +387,7 @@ public class JgitReporter {
 		for (String branchName : getBranchesList()) {
 			ArrayList<CommitData> commits = branchCommitsMap.get(branchName);
 			for (CommitData commit : commits) {
+
 				Integer value = authorMap.get(commit.getAuthor());
 				if (value == null)
 					value = 0;
