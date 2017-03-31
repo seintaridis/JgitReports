@@ -27,4 +27,10 @@ public class Util {
 		}
 	}
 
+	public static String getNameOfPath(String path) {
+		String[] tokens = path.split("/|\\\\");
+		String name = tokens[tokens.length - 1];
+		return name;
+	}
+
 }

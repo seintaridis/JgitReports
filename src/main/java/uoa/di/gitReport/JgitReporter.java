@@ -68,6 +68,7 @@ public class JgitReporter {
 
 	JgitReporter(String path) {
 		try {
+			System.out.println(path);
 			this.gitRepositoryPath = path;
 			repository = new FileRepositoryBuilder().setGitDir(new File(gitRepositoryPath + ".git")).build();
 			head = repository.getRef("HEAD");
@@ -183,19 +184,21 @@ public class JgitReporter {
 				if (foundInThisBranch) {
 					DiffStats diffStats = statsPerCommit(commit2);
 
-					modifiedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getName(), diffStats.getLinesUpdated());
+					modifiedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
+							diffStats.getLinesUpdated());
 					sumUpdatedLines += diffStats.getLinesUpdated();
-					insertedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getName(),
+					insertedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
 							diffStats.getLinesInserted());
 					sumInsertedLines += diffStats.getLinesInserted();
-					deletedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getName(), diffStats.getLinesDeleted());
+					deletedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
+							diffStats.getLinesDeleted());
 					sumDeletedLines += diffStats.getLinesDeleted();
 					sumLines += diffStats.getLinesChanged();
 
 					CommitData commitData = new CommitData();
 					commitData.setId(commit2.getName());
 					commitData.setMessage(commit2.getFullMessage());
-					commitData.setAuthor(commit2.getAuthorIdent().getName());
+					commitData.setAuthor(commit2.getAuthorIdent().getEmailAddress());
 
 					List<Ref> list = git.tagList().call();
 					ObjectId commitId = commit2.getId();
@@ -399,6 +402,7 @@ public class JgitReporter {
 			for (Edit x : hunk.toEditList()) {
 				int edit1 = x.getEndB() - x.getBeginB();
 				int edit2 = x.getEndA() - x.getBeginA();
+
 				if (x.getType() == Edit.Type.INSERT) {
 					linesInserted += (edit1 + edit2);
 				} else if (x.getType() == Edit.Type.DELETE) {

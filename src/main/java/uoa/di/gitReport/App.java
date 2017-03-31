@@ -14,6 +14,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoHeadException;
 
 import freemarker.core.ParseException;
+import freemarker.template.Configuration;
 import freemarker.template.MalformedTemplateNameException;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
@@ -25,18 +26,18 @@ import freemarker.template.TemplateNotFoundException;
  */
 public class App {
 	public static void main(String[] args) {
-
-		String path = "C:" + File.separator + "hello" + File.separator + "auctioneer" + File.separator;
-		String path1 = "C:" + File.separator + "hello" + File.separator + "CLI-git-repository-report" + File.separator;
-
+		String repositoryPath = args[0];
+		String reportPath = args[1];
 		try {
-			Template template = new FreeMarkerConfig().getCfg().getTemplate("helloworld.ftl");
-			Template branchTemplate = new FreeMarkerConfig().getCfg().getTemplate("branchTemplate.ftl");
-
-			JgitReporter gitReporter = new JgitReporter(path1);
+			Configuration cfg = ConfigurationUtil.getConfiguration();
+			Template indexTemplate = cfg.getTemplate("indexTemplate.ftl");
+			Template branchTemplate = cfg.getTemplate("branchTemplate.ftl");
+			JgitReporter gitReporter = new JgitReporter(repositoryPath + File.separator);
+			String name = Util.getNameOfPath(repositoryPath);
 
 			// Build the data-model
 			Map<String, Object> data = new HashMap<String, Object>();
+			data.put("repositoryName", name);
 			data.put("message", "GitReports");
 			Map<String, Object> dataBranch = new HashMap<String, Object>();
 
@@ -52,7 +53,7 @@ public class App {
 			HashMap<String, ArrayList<CommitData>> branchCommitsMap = gitReporter.branchCommitsMap;
 			for (String branchName : gitReporter.getBranchesList()) {
 				ArrayList<CommitData> commits = branchCommitsMap.get(branchName);
-				File file1 = new File("C:/hello/" + branchName + ".html");
+				File file1 = new File(reportPath + File.separator + branchName + ".html");
 				file1.getParentFile().mkdirs();
 				FileWriter writer = new FileWriter(file1);
 				dataBranch.put("message", branchName);
@@ -71,12 +72,12 @@ public class App {
 
 			// Console output
 			Writer out = new OutputStreamWriter(System.out);
-			template.process(data, out);
+			indexTemplate.process(data, out);
 			out.flush();
 
 			// File output
-			Writer file = new FileWriter(new File("C:/hello/FTL_helloworld.html"));
-			template.process(data, file);
+			Writer file = new FileWriter(new File(reportPath + "/Report.html"));
+			indexTemplate.process(data, file);
 
 			file.flush();
 			file.close();
