@@ -20,10 +20,6 @@ import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateNotFoundException;
 
-/**
- * Hello world!
- *
- */
 public class App {
 	public static void main(String[] args) {
 		String repositoryPath = args[0];
@@ -78,11 +74,8 @@ public class App {
 			// File output
 			Writer file = new FileWriter(new File(reportPath + "/Report.html"));
 			indexTemplate.process(data, file);
-
 			file.flush();
 			file.close();
-			int days = (int) ((gitReporter.maxCommitTime - gitReporter.minCommitTime) / (1000 * 60 * 60 * 24));
-			System.out.println(days);
 
 		} catch (TemplateNotFoundException e) {
 			// TODO Auto-generated catch block

@@ -6,6 +6,15 @@ public class BranchStats {
 	String name;
 	String commitPercentage;
 	int numOfCommits;
+	BranchDates branchDates;
+
+	public BranchDates getBranchDates() {
+		return branchDates;
+	}
+
+	public void setBranchDates(BranchDates branchDates) {
+		this.branchDates = branchDates;
+	}
 
 	public int getNumOfCommits() {
 		return numOfCommits;

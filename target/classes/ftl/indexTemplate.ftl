@@ -23,20 +23,10 @@ General Stats
 
 </ul>  
 
-<table style="width:50%">
 
 
-<tr>
-    <th>Branches</th>
-
-  </tr>
-<#list branches as branch>
-	 <tr> <td> <a href= "${branch}.html"> ${branch_index + 1}. ${branch} </a> </td> </tr>
-</#list>
-</table>
 
 
-Author Stats
 
 <table style="width:100%">
 <col width=10%>
@@ -47,6 +37,11 @@ Author Stats
  <col width=20%>
   <col width=20%>
  <col width=10%>
+ 
+ <tr>
+    <th>Author Stats</th>
+</tr>
+ 
 <tr>
     <th>name</th>
     <th>percentage</th>
@@ -74,22 +69,29 @@ Author Stats
 </#list>
 </table>
 
-Average commits per branch
 
-<table style="width:50%">
-<col width=30%>
+
+<table style="width:80%">
+<col width=20%>
  <col width=20%>
-
+ <col width=20%>
+ <col width=20%>
+<tr>
+    <th>Branch Stats</th>
+</tr>
  
 <tr>
     <th>name</th>
     <th>percentage</th>
+    <th>created date</th>
+    <th>last modified date</th>
 </tr>
 <#list branchStats as branchStat>
 	 <tr>  
-	      <td>  ${branchStat.name} </td>
+	      <td>  <a href= "${branchStat.name}.html">  ${branchStat.name} </a></td>   
 	      <td>  ${branchStat.commitPercentage}% </td>
-	    
+	      <td>  ${branchStat.branchDates.firstCommit} </td>
+	      <td>  ${branchStat.branchDates.lastCommit} </td>
 	  </tr>
 </#list>
 </table>
