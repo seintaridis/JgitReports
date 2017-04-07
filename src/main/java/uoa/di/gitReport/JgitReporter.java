@@ -162,17 +162,20 @@ public class JgitReporter {
 					}
 				}
 				if (foundInThisBranch) {
-					DiffStats diffStats = statsPerCommit(commit2);
-					modifiedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
-							diffStats.getLinesUpdated());
-					sumUpdatedLines += diffStats.getLinesUpdated();
-					insertedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
-							diffStats.getLinesInserted());
-					sumInsertedLines += diffStats.getLinesInserted();
-					deletedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
-							diffStats.getLinesDeleted());
-					sumDeletedLines += diffStats.getLinesDeleted();
-					sumLines += diffStats.getLinesChanged();
+
+					for (DiffStats diffstats : statsPerCommit(commit2)) {
+
+						modifiedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
+								diffstats.getLinesUpdated());
+						sumUpdatedLines += diffstats.getLinesUpdated();
+						insertedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
+								diffstats.getLinesInserted());
+						sumInsertedLines += diffstats.getLinesInserted();
+						deletedlinesPerAuthorMap.addValue(commit2.getAuthorIdent().getEmailAddress(),
+								diffstats.getLinesDeleted());
+						sumDeletedLines += diffstats.getLinesDeleted();
+						sumLines += diffstats.getLinesChanged();
+					}
 					CommitData commitData = new CommitData();
 					commitData.setId(commit2.getName());
 					commitData.setMessage(commit2.getFullMessage());
@@ -380,7 +383,9 @@ public class JgitReporter {
 		return diffStats;
 	}
 
-	DiffStats statsPerCommit(RevCommit commit) throws CorruptObjectException, MissingObjectException, IOException {
+	List<DiffStats> statsPerCommit(RevCommit commit)
+			throws CorruptObjectException, MissingObjectException, IOException {
+		ArrayList<DiffStats> statsList = new ArrayList<DiffStats>();
 		try (DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
 			DiffStats diffStats = new DiffStats();
 			diffFormatter.setRepository(repository);
@@ -389,6 +394,7 @@ public class JgitReporter {
 					FileHeader fileHeader = diffFormatter.toFileHeader(entry);
 					List<? extends HunkHeader> hunks = fileHeader.getHunks();
 					diffStats = getStatsPerCommit(hunks);
+					statsList.add(diffStats);
 				}
 			} else {
 				AbstractTreeIterator oldTreeIter = new EmptyTreeIterator();
@@ -399,9 +405,10 @@ public class JgitReporter {
 					FileHeader fileHeader = diffFormatter.toFileHeader(dif);
 					List<? extends HunkHeader> hunks = fileHeader.getHunks();
 					diffStats = getStatsPerCommit(hunks);
+					statsList.add(diffStats);
 				}
 			}
-			return diffStats;
+			return statsList;
 		}
 	}
 }
